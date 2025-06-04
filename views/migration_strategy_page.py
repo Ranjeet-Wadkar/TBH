@@ -12,16 +12,76 @@ from agents.migrator_agent import migrator_agent
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
+# def save_string_as_word(text, filename):
+#     """Creates a Word document with the provided text and saves it to filename."""
+#     document = Document()
+#     document.add_heading("Migration Strategy", level=1)
+#     paragraphs = text.split("\n\n")
+#     for para in paragraphs:
+#         p = document.add_paragraph(para)
+#         for run in p.runs:
+#             run.font.size = Pt(11)
+#     document.save(filename)
+
 def save_string_as_word(text, filename):
-    """Creates a Word document with the provided text and saves it to filename."""
+    """Creates a Word document with structured formatting from Markdown-style text."""
     document = Document()
     document.add_heading("Migration Strategy", level=1)
-    paragraphs = text.split("\n\n")
-    for para in paragraphs:
-        p = document.add_paragraph(para)
-        for run in p.runs:
-            run.font.size = Pt(11)
+
+    lines = text.split('\n')
+    in_code_block = False
+    code_lines = []
+
+    for line in lines:
+        stripped = line.strip()
+
+        # Handle code blocks
+        if stripped.startswith("```"):
+            if in_code_block:
+                # End of code block
+                document.add_paragraph('\n'.join(code_lines), style='Intense Quote')
+                code_lines = []
+                in_code_block = False
+            else:
+                in_code_block = True
+            continue
+
+        if in_code_block:
+            code_lines.append(line)
+            continue
+
+        # Section headers
+        if stripped.startswith("## "):
+            document.add_heading(stripped[3:].replace("**", ""), level=2)
+        elif stripped.startswith("### "):
+            document.add_heading(stripped[4:].replace("**", ""), level=3)
+        elif stripped.startswith("#### "):
+            document.add_heading(stripped[5:].replace("**", ""), level=4)
+
+        # Bullet points
+        elif stripped.startswith("- "):
+            document.add_paragraph(stripped[2:], style='List Bullet')
+
+        # Numbered lists
+        elif stripped[:2].isdigit() and stripped[2] == '.':
+            document.add_paragraph(stripped, style='List Number')
+
+        # Regular paragraph
+        elif stripped:
+            # Apply bold formatting manually if **bold**
+            para = document.add_paragraph()
+            while '**' in stripped:
+                pre, rest = stripped.split('**', 1)
+                bold_text, stripped = rest.split('**', 1)
+                para.add_run(pre)
+                para.add_run(bold_text).bold = True
+            para.add_run(stripped)
+        else:
+            # Add space between sections
+            document.add_paragraph("")
+
     document.save(filename)
+
 
 st.title("GitHub Repository Ingestor")
 st.write("Enter a GitHub repository URL to fetch its summary, tree, and content.")
@@ -111,7 +171,7 @@ if st.session_state.migration_strategy:
                 # Optionally: Use feedback to refine prompts and regenerate the strategy
 
 # Run fragmentor and migrator agents only if previous steps succeeded
-if st.session_state.repo_ingested and st.session_state.content and st.session_state.tree and st.session_state.migration_strategy:
+if st.session_state.repo_ingested and st.session_state.content and st.session_state.tree and st.session_state.migration_strategy and st.session_state.migration_approved:
     try:
         fragmented_data = fragmentor_agent(st.session_state.tree, st.session_state.content, st.session_state.migration_strategy)
         migrated_code = migrator_agent(st.session_state.tree, st.session_state.content, fragmented_data, st.session_state.human_expectations, st.session_state.human_guidelines)
