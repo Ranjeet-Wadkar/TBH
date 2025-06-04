@@ -5,14 +5,36 @@ from docx import Document
 from docx.shared import Pt
 
 load_dotenv()
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o-mini")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
+
+import tiktoken
+
+def count_tokens(text, model="gpt-4o"):
+    try:
+        encoding = tiktoken.encoding_for_model(model)
+    except KeyError:
+        encoding = tiktoken.get_encoding("cl100k_base")  # fallback
+    return len(encoding.encode(text))
 
 def reviewer_agent(tree, content, human_expectations, human_guidelines):
 
     # Legacy Code Reviewer Agent
     reviewer_agent = ConversableAgent(
         "chatbot",
-        llm_config={"config_list": [{"model": "o1-mini", "api_key": os.environ.get("OPENAI_API_KEY")}]},
-        human_input_mode="NEVER",  # No manual intervention
+        llm_config={
+            "config_list": [
+                {
+                    "model": AZURE_OPENAI_DEPLOYMENT_NAME,
+                    "api_key": AZURE_OPENAI_API_KEY,
+                    "base_url": AZURE_OPENAI_ENDPOINT,
+                    "api_type": "azure",
+                    # "api_version": "2024-02-15-preview"
+                    "api_version": AZURE_OPENAI_API_VERSION
+                }
+            ]}, human_input_mode="NEVER",  # No manual intervention
     )
 
     # Constructing Structured Prompts as Separate Messages
@@ -92,6 +114,11 @@ def reviewer_agent(tree, content, human_expectations, human_guidelines):
         }
     ]
 
+    # Count input tokens
+    full_prompt = "\n".join(msg["content"] for msg in messages)
+    input_tokens = count_tokens(full_prompt, model="gpt-4o")
+
+    print(f"🔢 Input Tokens: {input_tokens}")
     # Generate AI-driven Migration Strategy
     migration_strategy_from_agent = reviewer_agent.generate_reply(messages=messages)
     return migration_strategy_from_agent

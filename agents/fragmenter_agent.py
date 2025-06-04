@@ -3,11 +3,27 @@ from dotenv import load_dotenv
 from autogen import ConversableAgent
 
 load_dotenv()
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o-mini")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
+
 
 def fragmentor_agent(tree, content, migration_strategy_from_agent):
     fragmentor_agent = ConversableAgent(
         "chatbot",
-        llm_config={"config_list": [{"model": "o1-mini", "api_key": os.environ.get("OPENAI_API_KEY")}]},
+        # llm_config={"config_list": [{"model": "o1-mini", "api_key": os.environ.get("OPENAI_API_KEY")}]},
+        llm_config={
+            "config_list": [
+                {
+                    "model": AZURE_OPENAI_DEPLOYMENT_NAME,
+                    "api_key": AZURE_OPENAI_API_KEY,
+                    "base_url": AZURE_OPENAI_ENDPOINT,
+                    "api_type": "azure",
+                    # "api_version": "2024-02-15-preview"
+                    "api_version": AZURE_OPENAI_API_VERSION
+                }
+            ]},
         human_input_mode="NEVER",  # No manual intervention
     )
 

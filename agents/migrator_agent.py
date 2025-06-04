@@ -3,6 +3,10 @@ from dotenv import load_dotenv
 from autogen import ConversableAgent
 
 load_dotenv()
+AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o-mini")
+AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")
 
 def migrator_agent(tree, content, fragmented_output_from_agent, human_expectations, human_guidelines):
 
@@ -74,7 +78,18 @@ def migrator_agent(tree, content, fragmented_output_from_agent, human_expectatio
 
     migrator_agent = ConversableAgent(
         "chatbot",
-        llm_config={"config_list": [{"model": "gpt-4o", "api_key": os.environ.get("OPENAI_API_KEY")}]},
+        # llm_config={"config_list": [{"model": "gpt-4o", "api_key": os.environ.get("OPENAI_API_KEY")}]},
+        llm_config={
+            "config_list": [
+                {
+                    "model": AZURE_OPENAI_DEPLOYMENT_NAME,
+                    "api_key": AZURE_OPENAI_API_KEY,
+                    "base_url": AZURE_OPENAI_ENDPOINT,
+                    "api_type": "azure",
+                    # "api_version": "2024-02-15-preview"
+                    "api_version": AZURE_OPENAI_API_VERSION
+                }
+            ]},
         human_input_mode="NEVER",  # No manual intervention
     )
 
